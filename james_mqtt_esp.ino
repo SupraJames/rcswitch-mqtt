@@ -27,13 +27,15 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-// Update these with values suitable for your network.
-
+// Update these with values suitable for your network
 const char* ssid = "xxx";
 const char* password = "xxx";
 const char* mqtt_server = "mqtt-server";
 const char* controlTopic = "rfswitch/+";
 const char* messagesTopic = "messages";
+
+// PIN where RF transmitter is connected
+int RC_PIN = 5;
 
 RCSwitch mySwitch = RCSwitch();
 WiFiClient espClient;
@@ -43,7 +45,7 @@ char msg[50];
 int value = 0;
 
 void setup() {
-  mySwitch.enableTransmit(5);
+  mySwitch.enableTransmit(RC_PIN);
   pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   Serial.begin(115200);
   setup_wifi();

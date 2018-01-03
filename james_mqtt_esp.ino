@@ -31,9 +31,9 @@
 
 const char* ssid = "xxx";
 const char* password = "xxx";
-const char* mqtt_server = "smartie.dunley";
-const char* controlTopic = "dunley/bedroom/+";
-const char* messagesTopic = "dunley/messages";
+const char* mqtt_server = "mqtt-server";
+const char* controlTopic = "rfswitch/+";
+const char* messagesTopic = "messages";
 
 RCSwitch mySwitch = RCSwitch();
 WiFiClient espClient;
@@ -97,10 +97,10 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266-Bedroom")) {
+    if (client.connect("ESP8266-RCSwitch")) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish(messagesTopic, "ESP8266-Bedroom is ONLINE");
+      client.publish(messagesTopic, "ESP8266-RCSwitch is ONLINE");
       // ... and resubscribe
       client.subscribe(controlTopic);
     } else {
@@ -123,7 +123,7 @@ void loop() {
   if (now - lastMsg > 3600000) {
     lastMsg = now;
     ++value;
-    snprintf (msg, 75, "ESP8266-Bedroom is still ONLINE #%ld", value);
+    snprintf (msg, 75, "ESP8266-RCSwitch is still ONLINE #%ld", value);
     Serial.print("Publish message: ");
     Serial.println(msg);
     client.publish(messagesTopic, msg);

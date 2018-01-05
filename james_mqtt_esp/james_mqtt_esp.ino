@@ -69,7 +69,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   int topicLen = strlen(topic);
   int address = (topic[topicLen - 1] - '0');
   char statusTopic[50];
-  char* msg = "0";
+  char* statusMsg = "0";
 
   sprintf(statusTopic, "%s%d/status", controlTopic, address);
 
@@ -83,9 +83,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(statusTopic);
       
       if (bitRead(switchStatus, address)) {
-        msg = "1";
+        statusMsg = "1";
       } else {
-        msg = "0";
+        statusMsg = "0";
       }
       break;
     case '1':
@@ -95,7 +95,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
         mySwitch.sendTriState(TS_ON_CODE[address - 4]);
       }
       bitSet(switchStatus, address);
-      msg = "1";
+      statusMsg = "1";
       break;
     case '0':
       if (address < 4) {
@@ -104,16 +104,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
         mySwitch.sendTriState(TS_OFF_CODE[address - 4]);
       }
       bitClear(switchStatus, address);
-      msg = "0";
+      statusMsg = "0";
       break;
     }
     client.publish(statusTopic, msg);
   }
 
 void reconnect() {
-  //char* subTopic = "dunley/rfswitch/+";
-  //strncpy(subTopic,controlTopic,strlen(controlTopic));
-  //subTopic[strlen(controlTopic)] = '+';
 
   // Allocate a new buffer one char bigger than controlTopic
   char subTopic[strlen(controlTopic) + 2];
@@ -123,14 +120,14 @@ void reconnect() {
   subTopic[strlen(controlTopic)] = '+';
   subTopic[strlen(controlTopic) + 1] = '\0';
   
-  Serial.print("controlTopic: ");
-  Serial.println(controlTopic);
+  //Serial.print("controlTopic: ");
+  //Serial.println(controlTopic);
   Serial.print("subTopic: ");
   Serial.println(subTopic);
-  Serial.print("strlen controlTopic: ");
-  Serial.println(strlen(controlTopic));
-  Serial.print("strlen subTopic: ");
-  Serial.println(strlen(subTopic));
+  //Serial.print("strlen controlTopic: ");
+  //Serial.println(strlen(controlTopic));
+  //Serial.print("strlen subTopic: ");
+  //Serial.println(strlen(subTopic));
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
@@ -140,7 +137,6 @@ void reconnect() {
       // Once connected, publish an announcement...
       client.publish(messagesTopic, "ESP8266-RCSwitch is ONLINE");
       // ... and resubscribe
-      Serial.println(subTopic);
       client.subscribe(subTopic);
     } else {
       Serial.print("failed, rc=");

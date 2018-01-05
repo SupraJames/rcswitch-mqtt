@@ -1,28 +1,3 @@
-/*
- Basic ESP8266 MQTT example
-
- This sketch demonstrates the capabilities of the pubsub library in combination
- with the ESP8266 board/library.
-
- It connects to an MQTT server then:
-  - publishes "hello world" to the topic "outTopic" every two seconds
-  - subscribes to the topic "inTopic", printing out any messages
-    it receives. NB - it assumes the received payloads are strings not binary
-  - If the first character of the topic "inTopic" is an 1, switch ON the ESP Led,
-    else switch it off
-
- It will reconnect to the server if the connection is lost using a blocking
- reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
- achieve the same result without blocking the main loop.
-
- To install the ESP8266 board, (using Arduino 1.6.4+):
-  - Add the following 3rd party board manager under "File -> Preferences -> Additional Boards Manager URLs":
-       http://arduino.esp8266.com/stable/package_esp8266com_index.json
-  - Open the "Tools -> Board -> Board Manager" and click install for the ESP8266"
-  - Select your ESP8266 in "Tools -> Board"
-
-*/
-
 #include <RCSwitch.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
@@ -30,12 +5,15 @@
 // Update these with values suitable for your network
 const char* ssid = "xxx";
 const char* password = "xxx";
-const char* mqtt_server = "mqtt-server";
-const char* controlTopic = "rfswitch/+";
+const char* mqtt_server = "smartie";
+const char* controlTopic = "dunley/rfswitch/";
 const char* messagesTopic = "messages";
 
 // PIN where RF transmitter is connected
 int RC_PIN = 5;
+
+char* TS_ON_CODE[]={"F0F0FFFF0101", "F0F0FFFF1001", "F0F0FFF10001", "F0F0FF1F0001", "F0F0F1FF0001"};
+char* TS_OFF_CODE[]={"F0F0FFFF0110", "F0F0FFFF1010", "F0F0FFF10010", "F0F0FF1F0010", "F0F0F1FF0010"};
 
 RCSwitch mySwitch = RCSwitch();
 WiFiClient espClient;
@@ -43,14 +21,17 @@ PubSubClient client(espClient);
 long lastMsg = 0;
 char msg[50];
 int value = 0;
+byte switchStatus = 0; // a bit for each switch 1-8
 
 void setup() {
   mySwitch.enableTransmit(RC_PIN);
-  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
+  mySwitch.setPulseLength(182);
+  pinMode(BUILTIN_LED, OUTPUT);
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+ 
 }
 
 void setup_wifi() {
@@ -62,7 +43,9 @@ void setup_wifi() {
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);
-
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -85,16 +68,69 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   int topicLen = strlen(topic);
   int address = (topic[topicLen - 1] - '0');
-  
-  if ((char)payload[0] == '1') {
-    mySwitch.switchOn(1, address);
-  } else {
-    mySwitch.switchOff(1, address);
+  char statusTopic[50];
+  char* msg = "0";
+
+  sprintf(statusTopic, "%s%d/status", controlTopic, address);
+
+  switch (payload[0]) {
+    case 's':
+   
+      Serial.print("Status query for address ");
+      Serial.println(address);
+
+      Serial.print("Will publish to ");
+      Serial.println(statusTopic);
+      
+      if (bitRead(switchStatus, address)) {
+        msg = "1";
+      } else {
+        msg = "0";
+      }
+      break;
+    case '1':
+      if (address < 4) {
+        mySwitch.switchOn(1, address);
+      } else {
+        mySwitch.sendTriState(TS_ON_CODE[address - 4]);
+      }
+      bitSet(switchStatus, address);
+      msg = "1";
+      break;
+    case '0':
+      if (address < 4) {
+        mySwitch.switchOff(1, address);
+      } else {
+        mySwitch.sendTriState(TS_OFF_CODE[address - 4]);
+      }
+      bitClear(switchStatus, address);
+      msg = "0";
+      break;
+    }
+    client.publish(statusTopic, msg);
   }
 
-}
-
 void reconnect() {
+  //char* subTopic = "dunley/rfswitch/+";
+  //strncpy(subTopic,controlTopic,strlen(controlTopic));
+  //subTopic[strlen(controlTopic)] = '+';
+
+  // Allocate a new buffer one char bigger than controlTopic
+  char subTopic[strlen(controlTopic) + 2];
+  // Copy the contents of controlTopic to it
+  strncpy(subTopic,controlTopic,strlen(controlTopic));
+  // Add a '+' as the final character
+  subTopic[strlen(controlTopic)] = '+';
+  subTopic[strlen(controlTopic) + 1] = '\0';
+  
+  Serial.print("controlTopic: ");
+  Serial.println(controlTopic);
+  Serial.print("subTopic: ");
+  Serial.println(subTopic);
+  Serial.print("strlen controlTopic: ");
+  Serial.println(strlen(controlTopic));
+  Serial.print("strlen subTopic: ");
+  Serial.println(strlen(subTopic));
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
@@ -104,7 +140,8 @@ void reconnect() {
       // Once connected, publish an announcement...
       client.publish(messagesTopic, "ESP8266-RCSwitch is ONLINE");
       // ... and resubscribe
-      client.subscribe(controlTopic);
+      Serial.println(subTopic);
+      client.subscribe(subTopic);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());

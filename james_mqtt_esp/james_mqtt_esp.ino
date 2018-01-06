@@ -107,7 +107,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       statusMsg = "0";
       break;
     }
-    client.publish(statusTopic, msg);
+    client.publish(statusTopic, statusMsg);
   }
 
 void reconnect() {

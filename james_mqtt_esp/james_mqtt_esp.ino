@@ -75,7 +75,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   switch (payload[0]) {
     case 's':
-   
       Serial.print("Status query for address ");
       Serial.println(address);
 
@@ -86,6 +85,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
         statusMsg = "1";
       } else {
         statusMsg = "0";
+      }
+      break;
+    case 't':
+      Serial.print("Toggle for address ");
+      Serial.println(address);
+   
+      if (bitRead(switchStatus, address)) {
+        if (address < 4) {
+          mySwitch.switchOff(1, address);
+        } else {
+          mySwitch.sendTriState(TS_OFF_CODE[address - 4]);
+        }
+        bitClear(switchStatus, address);
+      } else {
+        if (address < 4) {
+          mySwitch.switchOn(1, address);
+        } else {
+          mySwitch.sendTriState(TS_ON_CODE[address - 4]);
+        }
+      bitSet(switchStatus, address);
       }
       break;
     case '1':
